@@ -1,0 +1,348 @@
+library(tidyverse)
+library(lubridate)
+
+setwd("C:/Users/Shivalee/Desktop")
+
+gtd <- read.csv("GTD.csv", stringsAsFactors = FALSE)
+
+tweets <- read.csv("IRAtweets.csv",
+                   stringsAsFactors = FALSE)
+
+holidays <- read.csv("Russianholidays.csv",
+                     stringsAsFactors = FALSE)
+
+islamist <- read.csv("islamistgroups.csv",
+                     stringsAsFactors = FALSE)
+
+
+head(gtd)
+head(tweets)
+head(holidays)
+head(islamist)
+
+sum(duplicated(gtd))
+sum(duplicated(tweets))
+sum(duplicated(holidays))
+sum(duplicated(islamist))
+
+gtd <- distinct(gtd)
+
+tweets <- distinct(tweets)
+
+holidays <- distinct(holidays)
+
+islamist <- distinct(islamist)
+
+gtd_russia <- gtd %>%
+  filter(country_txt == "Russia")
+
+islamist <- islamist %>%
+  mutate(Islamist = 1)
+
+gtd_russia <- gtd_russia %>%
+  left_join(
+    islamist,
+    by = c("gname" = "islamist_groups")
+  ) %>%
+  mutate(
+    Islamist = ifelse(is.na(Islamist), 0, 1)
+  )
+if(is.character(holidays$Month)){
+  
+  holidays$Month <- match(
+    holidays$Month,
+    month.name
+  )
+  
+}
+
+holidays$Day <- as.integer(holidays$Day)
+
+holidays_full <- crossing(
+  Year = 2015:2018,
+  holidays
+)
+
+holidays_full <- holidays_full %>%
+  mutate(
+    date = make_date(
+      Year,
+      Month,
+      Day
+    )
+  )
+
+holidays_full <- holidays_full %>%
+  distinct(date, .keep_all = TRUE)
+
+gtd_russia <- gtd_russia %>%
+  mutate(
+    date = make_date(
+      iyear,
+      imonth,
+      iday
+    )
+  )
+
+terror_daily <- gtd_russia %>%
+  group_by(date) %>%
+  summarise(
+    
+    terrorist_event = 1,
+    
+    islamist_event =
+      as.integer(any(Islamist == 1)),
+    
+    .groups = "drop"
+    
+  )
+
+holiday_daily <- holidays_full %>%
+  transmute(
+    
+    date,
+    
+    holiday = 1,
+    
+    Public,
+    
+    Religious,
+    
+    Political
+    
+  )
+
+tweets <- tweets %>%
+  mutate(
+    Date = as.Date(Date)
+  )
+
+panel <- tibble(
+  
+  date = seq(
+    as.Date("2015-01-01"),
+    as.Date("2018-06-30"),
+    by = "day"
+  )
+  
+)
+
+panel <- panel %>%
+  
+  left_join(
+    tweets,
+    by = c("date" = "Date")
+  ) %>%
+  
+  left_join(
+    terror_daily,
+    by = "date"
+  ) %>%
+  
+  left_join(
+    holiday_daily,
+    by = "date"
+  )
+
+panel <- panel %>%
+  
+  mutate(
+    
+    terrorist_event =
+      replace_na(terrorist_event, 0),
+    
+    islamist_event =
+      replace_na(islamist_event, 0),
+    
+    holiday =
+      replace_na(holiday, 0),
+    
+    Public =
+      replace_na(Public, 0),
+    
+    Religious =
+      replace_na(Religious, 0),
+    
+    Political =
+      replace_na(Political, 0)
+    
+  )
+
+nrow(panel)
+
+expected_days <-
+  as.integer(
+    as.Date("2018-06-30") -
+      as.Date("2015-01-01")
+  ) + 1
+
+expected_days
+
+sum(panel$terrorist_event)
+
+sum(panel$islamist_event)
+
+sum(panel$holiday)
+
+sum(panel$Public)
+
+sum(panel$Religious)
+
+sum(panel$Political)
+
+desc_stats <- function(x){
+  
+  data.frame(
+    
+    N = sum(!is.na(x)),
+    
+    Mean = mean(x, na.rm = TRUE),
+    
+    Min = min(x, na.rm = TRUE),
+    
+    Median = median(x, na.rm = TRUE),
+    
+    Max = max(x, na.rm = TRUE),
+    
+    SD = sd(x, na.rm = TRUE)
+    
+  )
+  
+}
+
+head(tweets$Date)
+class(tweets$Date)
+head(panel$date)
+class(panel$date)
+sum(is.na(panel$tweet_count_all))
+tweets_raw <- read.csv("IRAtweets.csv", stringsAsFactors = FALSE)
+head(tweets_raw$Date, 20)
+tweets <- read.csv("IRAtweets.csv", stringsAsFactors = FALSE)
+
+tweets$Date <- as.Date(tweets$Date, format = "%d-%m-%Y")
+
+head(tweets$Date)
+
+vars <- c(
+  
+  "tweet_count_all",
+  
+  "tweet_count_blm",
+  
+  "tweet_count_islam"
+  
+)
+
+results <- lapply(vars, function(v){
+  
+  out <- desc_stats(panel[[v]])
+  
+  out$Variable <- v
+  
+  out
+  
+})
+
+head(tweets$Date)
+
+head(panel$date)
+
+sum(is.na(panel$tweet_count_all))
+tweets <- read.csv(
+  "IRAtweets.csv",
+  stringsAsFactors = FALSE
+)
+
+tweets$Date <- as.Date(
+  tweets$Date,
+  format = "%d-%m-%Y"
+)
+head(tweets$Date)
+panel <- tibble(
+  date = seq(
+    as.Date("2015-01-01"),
+    as.Date("2018-06-30"),
+    by = "day"
+  )
+)
+
+panel <- panel %>%
+  left_join(tweets, by = c("date" = "Date"))
+
+sum(is.na(panel$tweet_count_all))
+
+desc_stats <- function(x) {
+  
+  if (all(is.na(x))) {
+    return(data.frame(
+      N = 0,
+      Mean = NA,
+      Min = NA,
+      Median = NA,
+      Max = NA,
+      SD = NA
+    ))
+  }
+  
+  data.frame(
+    N = sum(!is.na(x)),
+    Mean = mean(x, na.rm = TRUE),
+    Min = min(x, na.rm = TRUE),
+    Median = median(x, na.rm = TRUE),
+    Max = max(x, na.rm = TRUE),
+    SD = sd(x, na.rm = TRUE)
+  )
+}
+
+vars <- c(
+  
+  "tweet_count_all",
+  
+  "tweet_count_blm",
+  
+  "tweet_count_islam"
+  
+)
+
+results <- lapply(vars, function(v){
+  
+  out <- desc_stats(panel[[v]])
+  
+  out$Variable <- v
+  
+  out
+  
+})
+
+descriptives <- bind_rows(results) %>%
+  
+  select(
+    Variable,
+    everything()
+  )
+
+print(descriptives)
+
+ggplot(panel,
+       aes(tweet_count_all)) +
+  geom_histogram(bins = 30)
+
+ggplot(panel,
+       aes(tweet_count_blm)) +
+  geom_histogram(bins = 30)
+
+ggplot(panel,
+       aes(tweet_count_islam)) +
+  geom_histogram(bins = 30)
+
+ggplot(panel,
+       aes(tweet_count_all)) +
+  geom_density()
+
+ggplot(panel,
+       aes(tweet_count_blm)) +
+  geom_density()
+
+ggplot(panel,
+       aes(tweet_count_islam)) +
+  geom_density()
